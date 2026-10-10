@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# No services or credentials are needed for this native macOS project's orb.
+version="$(cat .go-version)"
+[[ "$version" == 1.27.2 ]] || { echo 'Update the archive checksum for the new Go version.' >&2; exit 1; }
+[[ "$(uname -s)/$(uname -m)" == Linux/x86_64 ]] || {
+  echo 'This orb setup supports Linux x64 only; install the pinned Go version on other hosts.' >&2
+  exit 1
+}
+root="$HOME/.local/share/macsweep"
+expected='ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5'
+mkdir -p "$root" "$HOME/.local/bin"
+if [[ ! -x "$root/go/bin/go" ]] || [[ "$("$root/go/bin/go" version)" != "go version go$version linux/amd64" ]]; then
+  scratch="$(mktemp -d)"
+  trap 'rm -rf "$scratch"' EXIT
+  curl --fail --location --silent --show-error "https://go.dev/dl/go$version.linux-amd64.tar.gz" -o "$scratch/go.tar.gz"
+  printf '%s  %s\n' "$expected" "$scratch/go.tar.gz" | sha256sum --check --status
+  tar -xzf "$scratch/go.tar.gz" -C "$scratch"
+  # Only replace the directory reserved for this setup; no user Go install is removed.
+  if [[ -d "$root/go" ]]; then mv "$root/go" "$scratch/previous-go"; fi
+  mv "$scratch/go" "$root/go"
+fi
+for tool in go gofmt; do
+  destination="$HOME/.local/bin/$tool"
+  if [[ -e "$destination" || -L "$destination" ]]; then
+    [[ "$(readlink "$destination" || true)" == "$root/go/bin/$tool" ]] || {
+      echo "Refusing to replace existing $destination. Add $root/go/bin to PATH instead." >&2
+      exit 1
+    }
+  else
+    ln -s "$root/go/bin/$tool" "$destination"
+  fi
+done
+export PATH="$root/go/bin:$PATH"
+go mod download
+printf 'MacSweep orb setup ready. Native execution still requires a Mac.\n'

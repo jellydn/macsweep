@@ -1,0 +1,15 @@
+{
+  "name": "MacSweep",
+  "identifier": "io.github.jellydn.macsweep",
+  "version": "0.1.0",
+  "copyright": "Copyright (c) 2026 Dung Huynh Duc",
+  "main": "./cmd/macsweep",
+  "out": "build",
+  "resources": ["LICENSE", "THIRD_PARTY_NOTICES.md", "licenses"],
+  "macos": {
+    "minimumSystemVersion": "13.0",
+    "infoPlist": {
+      "LSApplicationCategoryType": "public.app-category.utilities"
+    }
+  }
+}

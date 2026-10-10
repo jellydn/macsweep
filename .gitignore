@@ -1,0 +1,8 @@
+/build/
+/dist/
+/.mygo/
+/.amp/
+.DS_Store
+*.p12
+*.p8
+*.keychain-db
