@@ -1,7 +1,8 @@
 # Safety contract
 
 This is an implementation contract, not a claim that cleanup exists. The current
-build has read-only policy/scan/preview services but no file-mutation code.
+build has read-only policy/scan/preview services but no cleanup mutation code.
+Explicit preference saves write only MacSweep's local exclusion settings.
 No provider rules are approved or shipped. Cleanup controls remain disabled.
 
 ## Scan and preview

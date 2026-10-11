@@ -51,9 +51,20 @@ type Policy struct {
 }
 
 var ErrIneligible = errors.New("file is not eligible")
+var ErrExcluded = errors.New("excluded by path policy")
 
 // Default ships no rules until exact provider paths have been approved.
 func Default(home string) (*Policy, error) { return New(home, nil, nil) }
+
+// WithExclusions replaces user exclusions without changing reviewed rules.
+func (p *Policy) WithExclusions(paths []string) (*Policy, error) {
+	next, err := New(p.home, nil, paths)
+	if err != nil {
+		return nil, err
+	}
+	next.targets, next.byID = p.targets, p.byID
+	return next, nil
+}
 
 func New(home string, rules []Rule, exclusions []string) (*Policy, error) {
 	if os.Getuid() == 0 {
@@ -154,8 +165,11 @@ func (p *Policy) excluded(path string) bool {
 // identity changes while descending. No filesystem-mutation API is exposed.
 func (p *Policy) Inspect(target Target, now time.Time) (File, error) {
 	known, ok := p.byID[target.ID]
-	if !ok || known != target || p.excluded(target.RelativePath) {
+	if !ok || known != target {
 		return File{}, ErrIneligible
+	}
+	if p.excluded(target.RelativePath) {
+		return File{}, ErrExcluded
 	}
 	root, err := os.OpenRoot(p.home)
 	if err != nil {
