@@ -32,6 +32,7 @@ cleanup authority or a substitute for native descriptor/staging race proof.
 Errors and skips are local only. No logs or file paths are uploaded. There is no
 cleanup service, automatic retry or arbitrary-path action. Trash remains disabled.
 
-Still pending: approved rules, native APFS/TCC/clone/cloud/active-app tests,
-100,000-file real-fixture responsiveness/RSS measurements,
-durable recovery, native Trash proof and separate cleanup-enable review.
+The [100,000-file harness](performance.md) records Linux/headless timings and RSS;
+these do not establish native responsiveness or the native idle-app RSS target.
+Still pending: approved rules, native APFS/TCC/clone/cloud/active-app and performance
+tests, durable recovery, native Trash proof and separate cleanup-enable review.

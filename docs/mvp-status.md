@@ -4,8 +4,11 @@
 work. The first stack (#3 policy, #4 scan, #5 preview) and #1 Renovate onboarding
 are merged into `main`. They do not complete the MVP.
 
-The next review stack is `main ← scan-progress/reporting ← scan-progress/preview`.
-It adds bounded scanner count reports and numeric UI progress. Review bottom first.
+The review stack is `main ← scan-progress/reporting ← scan-progress/preview ←
+scan-progress/exclusions ← scan-progress/exclusion-ui ← scan-progress/measurements`.
+It adds bounded count reports, numeric UI progress, private user preferences,
+offscreen/excluded-selection explanations and reproducible performance evidence.
+Review bottom first; none of these layers enables cleanup.
 Progress never exposes selectable partial results, even when checked equals total.
 The empty shipping rule set still ends with the no-approved-rules message.
 
@@ -42,9 +45,11 @@ handler. No runtime updater, app network client, telemetry or elevation was adde
    after safety approval. Creating tags, preparing/publishing a release and merging
    PRs require separate approval; no such actions were performed.
 
-User-exclusion preferences, hidden/excluded-selection explanations and the
-100,000-entry performance fixture remain open. Count progress is not a time or
-completion estimate. Batched updates can pause during a slow metadata call.
+User-exclusion preferences and hidden/excluded-selection explanations are
+implemented; see [exclusion behavior and persistence](exclusions.md).
+The [100,000-file fixture and Linux measurements](performance.md) are recorded.
+Native performance gates remain open. Count progress is not a time or completion
+estimate. Batched updates can pause during a slow metadata call.
 
 Follow the umbrella checklists, [safety contract](safety.md),
 [provider approval](provider-rules.md) and [scan contract](scan-preview.md).
