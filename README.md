@@ -2,9 +2,13 @@
 
 A safety-first, offline macOS cleaner in Go and [MyGo](https://github.com/egoist/mygo).
 
-**Status: repository setup only.** The native window explains this state. Scan and
-cleanup controls are disabled. No cleaner, provider rules, disk dashboard,
-history, or recovery service is implemented yet. Do not use this build to clean a Mac.
+**Status: read-only MVP foundation.** The app shows local disk capacity and scans
+only exact reviewed provider files. No provider rules are approved or shipped yet,
+so a normal scan inspects no cache files. Cleanup is always disabled. There is no
+Trash service, history, recovery, or usable cleaner yet. Do not use this build to clean a Mac.
+
+Follow the [MVP umbrella issue](https://github.com/jellydn/macsweep/issues/2),
+[provider approval](docs/provider-rules.md), and [scan/preview contract](docs/scan-preview.md).
 
 ## Safety contract
 
