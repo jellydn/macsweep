@@ -1,7 +1,8 @@
 # Safety contract
 
-This is an implementation contract, not a claim that cleanup exists. The setup
-build has no file-mutation code and keeps both scan and cleanup controls disabled.
+This is an implementation contract, not a claim that cleanup exists. The current
+build has read-only policy/scan/preview services but no file-mutation code.
+No provider rules are approved or shipped. Cleanup controls remain disabled.
 
 ## Scan and preview
 

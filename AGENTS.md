@@ -1,7 +1,7 @@
 # MacSweep agent guidance
 
 Read `CONTEXT.md` and `docs/safety.md` before changing scan or cleanup behavior.
-This is a setup build. Do not enable cleanup as part of unrelated setup work.
+This is a read-only build. Do not enable cleanup before the native safety gates pass.
 
 ## Boundaries
 

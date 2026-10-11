@@ -38,6 +38,7 @@ Download and unzip the artifact, then extract `MacSweep-test.zip`. Verify its
 signature and architecture before opening it. Gatekeeper can require explicit
 user approval. Never disable Gatekeeper or remove quarantine as a test shortcut.
 
-The current window must say that scanning and cleanup are unavailable; both
-buttons must remain disabled. Check light/dark mode, keyboard focus, window
-resizing, and VoiceOver on a Mac. Do not grant Full Disk Access.
+The current app must show its read-only status and blocked cleanup. Scanning the
+empty shipping rule set must say that no cache files were inspected. Move to Trash
+must remain disabled even for selected synthetic preview fixtures. Check light/dark
+mode, keyboard focus, window resizing, and VoiceOver on a Mac. Do not grant FDA.
