@@ -11,6 +11,14 @@ between metadata inspections and before completion. A cancelled or over-limit
 scan returns no usable snapshot. A slow native filesystem call is not interruptible
 by this check; measure native cancellation latency before claiming the one-second gate.
 
+`scan.RunWithProgress` adds optional synchronous count reports: before inspection,
+after each 128 targets, and after the last target (no duplicate final report).
+Reports contain total targets, checked targets, candidates and skips, not paths or
+selectable files. There are at most 783 reports for 100,000 targets. Consumers must
+return promptly and marshal UI work to the UI thread. Counts can reach the total
+before cancellation or final validation fails; only a returned snapshot means
+completion. A slow metadata call can delay progress as well as cancellation.
+
 Completed snapshots have unique IDs and copied immutable candidate/skip metadata.
 Selections begin empty, accept only IDs in one snapshot, reject duplicates, and
 report count and estimated file bytes. A rescan invalidates older selections.

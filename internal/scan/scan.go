@@ -21,6 +21,11 @@ type Summary struct {
 	Bytes int64
 }
 
+// Progress contains counts only, never selectable partial results.
+type Progress struct {
+	Total, Checked, Candidates, Skipped int
+}
+
 // Snapshot is returned only for a complete scan. Accessors return copies.
 type Snapshot struct {
 	id      string
@@ -33,6 +38,14 @@ type Snapshot struct {
 // Run visits only exact approved paths, never walks an entire cache tree.
 // A cancelled or bounded-out scan returns no usable partial snapshot.
 func Run(ctx context.Context, p *policy.Policy) (*Snapshot, error) {
+	return RunWithProgress(ctx, p, nil)
+}
+
+// RunWithProgress reports before inspection, after each batch of 128 targets,
+// and after the last target. report runs synchronously on the caller's goroutine
+// and must return promptly. Counts do not imply successful completion: callers
+// must wait for the returned snapshot. Cancellation still discards all results.
+func RunWithProgress(ctx context.Context, p *policy.Policy, report func(Progress)) (*Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -41,6 +54,12 @@ func Run(ctx context.Context, p *policy.Policy) (*Snapshot, error) {
 		return nil, errors.New("scan exceeds the reviewed file limit")
 	}
 	s := &Snapshot{id: rand.Text(), byID: make(map[string]policy.File)}
+	publish := func() {
+		if report != nil {
+			report(Progress{Total: len(targets), Checked: s.checked, Candidates: len(s.files), Skipped: len(s.skipped)})
+		}
+	}
+	publish()
 	now := time.Now()
 	for _, target := range targets {
 		if err := ctx.Err(); err != nil {
@@ -50,10 +69,13 @@ func Run(ctx context.Context, p *policy.Policy) (*Snapshot, error) {
 		s.checked++
 		if err != nil {
 			s.skipped = append(s.skipped, Skipped{target.RelativePath, err.Error()})
-			continue
+		} else {
+			s.files = append(s.files, file)
+			s.byID[file.Target.ID] = file
 		}
-		s.files = append(s.files, file)
-		s.byID[file.Target.ID] = file
+		if s.checked%128 == 0 || s.checked == len(targets) {
+			publish()
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

@@ -3,8 +3,10 @@ package scan_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -90,6 +92,67 @@ func TestCancelledScanReturnsNoSnapshot(t *testing.T) {
 	s, err := scan.Run(ctx, p)
 	if s != nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled scan returned usable data: %v %v", s, err)
+	}
+}
+
+func TestProgressCountsCandidatesAndSkips(t *testing.T) {
+	p, _ := fixture(t)
+	var reports []scan.Progress
+	s, err := scan.RunWithProgress(context.Background(), p, func(progress scan.Progress) {
+		reports = append(reports, progress)
+	})
+	want := []scan.Progress{{Total: 3}, {Total: 3, Checked: 3, Candidates: 2, Skipped: 1}}
+	if err != nil || s == nil || !slices.Equal(reports, want) {
+		t.Fatalf("snapshot=%v reports=%v err=%v", s, reports, err)
+	}
+}
+
+func TestProgressBatchesAndCancellation(t *testing.T) {
+	for _, total := range []int{0, 127, 128, 129, 257} {
+		for _, cancelAt := range []int{-1, 0, 128, total} {
+			t.Run(fmt.Sprintf("targets=%d/cancel=%d", total, cancelAt), func(t *testing.T) {
+				paths := make([]string, total)
+				for i := range paths {
+					paths[i] = fmt.Sprintf("Library/Caches/fixture/missing-%d", i)
+				}
+				p, err := policy.New(t.TempDir(), []policy.Rule{{ID: "fixture", Version: "1", Reason: "test", Evidence: "synthetic only", Paths: paths, MinAge: time.Hour}}, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				var reports []scan.Progress
+				cancelled := false
+				s, err := scan.RunWithProgress(ctx, p, func(progress scan.Progress) {
+					reports = append(reports, progress)
+					if progress.Checked == cancelAt {
+						cancelled = true
+						cancel()
+					}
+				})
+				if cancelled {
+					if s != nil || !errors.Is(err, context.Canceled) {
+						t.Fatalf("cancelled progress authorized snapshot: %v %v", s, err)
+					}
+				} else if err != nil || s == nil || s.Checked() != total {
+					t.Fatalf("incomplete scan: %v %v", s, err)
+				}
+				end := total
+				if cancelled {
+					end = cancelAt
+				}
+				want := []scan.Progress{{Total: total}}
+				for checked := 128; checked < end; checked += 128 {
+					want = append(want, scan.Progress{Total: total, Checked: checked, Skipped: checked})
+				}
+				if end > 0 {
+					want = append(want, scan.Progress{Total: total, Checked: end, Skipped: end})
+				}
+				if !slices.Equal(reports, want) {
+					t.Fatalf("reports=%v want=%v", reports, want)
+				}
+			})
+		}
 	}
 }
 
