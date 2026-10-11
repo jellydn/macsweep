@@ -107,6 +107,10 @@ func New(home string, rules []Rule, exclusions []string) (*Policy, error) {
 	}
 	for _, path := range exclusions {
 		if filepath.IsAbs(path) {
+			// Validate before Rel can erase traversal components.
+			if !validRelative(strings.TrimPrefix(filepath.ToSlash(path), "/")) {
+				return nil, fmt.Errorf("invalid exclusion %q", path)
+			}
 			path, err = filepath.Rel(home, path)
 			if err != nil {
 				return nil, err

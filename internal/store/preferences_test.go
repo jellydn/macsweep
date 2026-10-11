@@ -19,8 +19,10 @@ func TestExclusionsRoundTripAndInvalidSave(t *testing.T) {
 	if err := store.SaveExclusions(home, want); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.SaveExclusions(home, []string{"../outside"}); err == nil {
-		t.Fatal("invalid preference accepted")
+	for _, invalid := range []string{"../outside", home + "/Library/../Documents"} {
+		if err := store.SaveExclusions(home, []string{invalid}); err == nil {
+			t.Fatalf("invalid preference accepted: %q", invalid)
+		}
 	}
 	paths, err = store.LoadExclusions(home)
 	if err != nil || !slices.Equal(paths, want) {
