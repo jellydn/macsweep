@@ -79,6 +79,12 @@ func TestReadOnlyPreviewSelectionAndReset(t *testing.T) {
 	if err := tt.Click("Scan Mac"); err != nil {
 		t.Fatal(err)
 	}
+	m.Progress(scan.Progress{Total: 257, Checked: 128, Candidates: 3, Skipped: 125})
+	tt.Frame()
+	if !tt.HasText("Scanning: 128 / 257 checked • 3 candidates • 125 skipped. Preview pending.") ||
+		!tt.HasText("Selected files: 0 • Estimated bytes: 0") {
+		t.Fatal("progress counts are hidden or stale selection survived")
+	}
 	if !tt.HasText("Selected files: 0 • Estimated bytes: 0") || tt.HasText("large.cache") {
 		t.Fatal("rescan kept stale selection or candidates")
 	}
@@ -94,6 +100,7 @@ func TestCleanupIsDisabledInAllReadOnlyStates(t *testing.T) {
 			switch state {
 			case "scanning":
 				m.Begin()
+				m.Progress(scan.Progress{Total: 100000, Checked: 100000, Candidates: 87654, Skipped: 12346})
 			case "empty":
 				p, err := policy.Default(t.TempDir())
 				if err != nil {
@@ -138,11 +145,24 @@ func TestCancelScanClearsThePreview(t *testing.T) {
 	if err := tt.Click("Scan Mac"); err != nil {
 		t.Fatal(err)
 	}
+	m.Progress(scan.Progress{Total: 3, Checked: 3, Candidates: 2, Skipped: 1})
+	tt.Frame()
+	if !tt.HasText("Preview pending.") || !tt.HasText("Selected files: 0 • Estimated bytes: 0") {
+		t.Fatal("final progress was treated as a completed preview")
+	}
 	if err := tt.Click("Cancel scan"); err != nil {
 		t.Fatal(err)
 	}
+	m.Progress(scan.Progress{Total: 3, Checked: 3, Candidates: 2, Skipped: 1})
+	tt.Frame()
 	if !tt.HasText("Scan cancelled. No preview is available.") {
 		t.Fatal("cancellation left a usable preview")
+	}
+	if err := tt.Click("Scan Mac"); err != nil {
+		t.Fatal(err)
+	}
+	if tt.HasText("3 / 3") || !tt.HasText("Scanning reviewed file metadata") {
+		t.Fatal("new scan kept old progress")
 	}
 	m.Finish(nil, errors.New("fixture unavailable"))
 	tt.Frame()

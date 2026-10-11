@@ -1,8 +1,13 @@
 # Read-only MVP stack status
 
 [Umbrella issue #2](https://github.com/jellydn/macsweep/issues/2) owns all remaining
-work. The stack is `main ← mvp/policy ← mvp/scan ← mvp/preview`. Each PR depends
-on the layer below it; review bottom first. These PRs do not complete the MVP.
+work. The first stack (#3 policy, #4 scan, #5 preview) and #1 Renovate onboarding
+are merged into `main`. They do not complete the MVP.
+
+The next review stack is `main ← scan-progress/reporting ← scan-progress/preview`.
+It adds bounded scanner count reports and numeric UI progress. Review bottom first.
+Progress never exposes selectable partial results, even when checked equals total.
+The empty shipping rule set still ends with the no-approved-rules message.
 
 ## Implemented for review
 
@@ -36,6 +41,10 @@ handler. No runtime updater, app network client, telemetry or elevation was adde
 6. Provision trusted signing/notary access and reviewed release environment only
    after safety approval. Creating tags, preparing/publishing a release and merging
    PRs require separate approval; no such actions were performed.
+
+User-exclusion preferences, hidden/excluded-selection explanations and the
+100,000-entry performance fixture remain open. Count progress is not a time or
+completion estimate. Batched updates can pause during a slow metadata call.
 
 Follow the umbrella checklists, [safety contract](safety.md),
 [provider approval](provider-rules.md) and [scan contract](scan-preview.md).

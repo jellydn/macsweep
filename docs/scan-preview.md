@@ -19,6 +19,10 @@ return promptly and marshal UI work to the UI thread. Counts can reach the total
 before cancellation or final validation fails; only a returned snapshot means
 completion. A slow metadata call can delay progress as well as cancellation.
 
+The app applies these counts through `Window.Update` and shows "Preview pending"
+until the worker returns. A rescan clears old counts and selections. Completion,
+cancellation and errors replace progress; counts alone never populate the preview.
+
 Completed snapshots have unique IDs and copied immutable candidate/skip metadata.
 Selections begin empty, accept only IDs in one snapshot, reject duplicates, and
 report count and estimated file bytes. A rescan invalidates older selections.
@@ -29,5 +33,5 @@ Errors and skips are local only. No logs or file paths are uploaded. There is no
 cleanup service, automatic retry or arbitrary-path action. Trash remains disabled.
 
 Still pending: approved rules, native APFS/TCC/clone/cloud/active-app tests,
-100,000-file real-fixture responsiveness/RSS measurements, progress for slow scans,
+100,000-file real-fixture responsiveness/RSS measurements,
 durable recovery, native Trash proof and separate cleanup-enable review.

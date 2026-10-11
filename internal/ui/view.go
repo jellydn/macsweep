@@ -33,6 +33,14 @@ func (m *Model) Begin() {
 	m.status = "Scanning reviewed file metadata…"
 }
 
+func (m *Model) Progress(progress scan.Progress) {
+	if !m.Scanning {
+		return
+	}
+	m.status = fmt.Sprintf("Scanning: %d / %d checked • %d candidates • %d skipped. Preview pending.",
+		progress.Checked, progress.Total, progress.Candidates, progress.Skipped)
+}
+
 func (m *Model) Finish(snapshot *scan.Snapshot, err error) {
 	m.Scanning = false
 	m.snapshot, m.files, m.skipped, m.selected = nil, nil, nil, nil

@@ -74,7 +74,9 @@ func main() {
 			model.Begin()
 			go func() {
 				defer stop()
-				snapshot, err := scan.Run(ctx, p)
+				snapshot, err := scan.RunWithProgress(ctx, p, func(progress scan.Progress) {
+					win.Update(func() { model.Progress(progress) })
+				})
 				win.Update(func() { model.Finish(snapshot, err) })
 			}()
 		}
