@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/jellydn/macsweep/internal/platform"
@@ -17,7 +18,12 @@ type Model struct {
 	Capacity                   platform.Capacity
 	CapacityError, PolicyError string
 	OnScan, OnCancel           func()
+	OnSaveExclusions           func([]string)
+	PreferencesBusy            bool
 	Scanning                   bool
+	exclusionDraft             string
+	editingExclusions          bool
+	preferenceStatus           string
 	snapshot                   *scan.Snapshot
 	files                      []policy.File
 	skipped                    []scan.Skipped
@@ -60,12 +66,19 @@ func (m *Model) Finish(snapshot *scan.Snapshot, err error) {
 }
 
 func (m *Model) View(c *ui.Context) {
+	if m.editingExclusions {
+		m.exclusionsView(c)
+		return
+	}
 	t := c.Theme()
-	ui.Column(c).Fill().Gap(10).Padding(20).Children(func() {
+	ui.Column(c).Fill().Gap(8).Padding(20).Children(func() {
 		ui.Text(c, "MacSweep").FontSize(26).Bold()
 		ui.Text(c, "Read-only preview • No admin access, network or telemetry").FontSize(12).TextColor(t.TextMuted)
 		ui.Row(c).Gap(10).Children(func() {
-			ui.Button(c, "Scan Mac").Disabled(m.Scanning || m.OnScan == nil).OnClick(m.OnScan)
+			ui.Button(c, "Scan Mac").Disabled(m.Scanning || m.PreferencesBusy || m.PolicyError != "" || m.OnScan == nil).OnClick(m.OnScan)
+			ui.Button(c, "Exclusions").Disabled(m.Scanning || m.PreferencesBusy || m.OnSaveExclusions == nil).OnClick(func() {
+				m.editingExclusions = true
+			})
 			if m.Scanning {
 				ui.Button(c, "Cancel scan").Disabled(m.OnCancel == nil).OnClick(m.OnCancel)
 			}
@@ -78,6 +91,9 @@ func (m *Model) View(c *ui.Context) {
 		status := m.status
 		if status == "" {
 			status = "Preview reviewed files. All selections start clear."
+		}
+		if m.PreferencesBusy {
+			status = "Loading exclusions… Scanning is unavailable."
 		}
 		if m.PolicyError != "" {
 			status = "Scan unavailable: " + m.PolicyError
@@ -122,12 +138,64 @@ func (m *Model) View(c *ui.Context) {
 				summary = selection.Summary()
 			}
 		}
-		ui.Text(c, fmt.Sprintf("Selected files: %d • Estimated bytes: %d", summary.Count, summary.Bytes))
+		first, last := m.list.Visible()
+		visibleSelected := 0
+		for i := max(0, first); i <= last && i < len(m.files); i++ {
+			if m.selected[m.files[i].Target.ID] {
+				visibleSelected++
+			}
+		}
+		ui.Row(c).Gap(8).Children(func() {
+			ui.Text(c, fmt.Sprintf("Selected files: %d • Estimated bytes: %d", summary.Count, summary.Bytes)).Grow(1)
+			ui.Button(c, "Clear selection").Disabled(summary.Count == 0).OnClick(func() { m.selected = nil })
+		})
+		ui.Text(c, fmt.Sprintf("Selected outside view: %d. Skipped/excluded files cannot be selected.", summary.Count-visibleSelected)).FillWidth().FontSize(12).MaxLines(2)
 		ui.Row(c).Gap(10).Children(func() {
 			// No handler exists: preview and selection never authorize mutation.
 			ui.Button(c, "Move to Trash").Disabled(true)
 			ui.Text(c, "Cleanup blocked: native safety gates pending.").FontSize(12).Grow(1)
 		})
 		ui.Text(c, "Trash moves normally free no disk space.").FontSize(12).TextColor(t.TextMuted)
+	})
+}
+
+// ExclusionsLoaded is called on the UI thread after loading or saving settings.
+func (m *Model) ExclusionsLoaded(paths []string, err error) {
+	m.PreferencesBusy = false
+	if err != nil {
+		m.PolicyError = "Exclusions unavailable: " + err.Error()
+		m.preferenceStatus = m.PolicyError
+		return
+	}
+	m.PolicyError = ""
+	m.exclusionDraft = strings.Join(paths, "\n")
+	m.preferenceStatus = fmt.Sprintf("Saved exclusions: %d. Built-in exclusions always apply.", len(paths))
+}
+
+func (m *Model) exclusionsView(c *ui.Context) {
+	ui.Column(c).Fill().Gap(10).Padding(20).Children(func() {
+		ui.Text(c, "User exclusions").FontSize(22).Bold()
+		ui.Text(c, "One path per line, relative to home or absolute within home. Use . to exclude all home paths.").FillWidth().MaxLines(3)
+		ui.Text(c, "Saving clears the preview and all selections. Exclusions never approve files.").FillWidth().FontSize(12).MaxLines(2)
+		ui.TextArea(c, &m.exclusionDraft).Label("Excluded paths").Placeholder("Library/Caches/example").Disabled(m.PreferencesBusy).Grow(1).FillWidth()
+		ui.Text(c, m.preferenceStatus).FillWidth().MaxLines(3).FontSize(12)
+		ui.Row(c).Gap(10).Children(func() {
+			ui.Button(c, "Save exclusions").Disabled(m.PreferencesBusy || m.OnSaveExclusions == nil).OnClick(func() {
+				var paths []string
+				for _, line := range strings.Split(m.exclusionDraft, "\n") {
+					if path := strings.TrimSuffix(line, "\r"); path != "" {
+						paths = append(paths, path)
+					}
+				}
+				m.snapshot, m.files, m.skipped, m.selected = nil, nil, nil, nil
+				m.list = ui.ListState{}
+				m.status = "Exclusions changed. Preview and selection cleared. Scan again."
+				m.PreferencesBusy = true
+				m.preferenceStatus = "Saving exclusions…"
+				m.OnSaveExclusions(paths)
+			})
+			ui.Button(c, "Back to preview").Disabled(m.PreferencesBusy).OnClick(func() { m.editingExclusions = false })
+		})
+		ui.Text(c, "Cleanup remains blocked. No cache files are changed.").FillWidth().FontSize(12)
 	})
 }

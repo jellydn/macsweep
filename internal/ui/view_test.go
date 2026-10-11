@@ -15,7 +15,7 @@ import (
 	appui "github.com/jellydn/macsweep/internal/ui"
 )
 
-func preview(t *testing.T) *scan.Snapshot {
+func preview(t *testing.T, exclusions ...string) *scan.Snapshot {
 	t.Helper()
 	home, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -35,7 +35,7 @@ func preview(t *testing.T) *scan.Snapshot {
 			t.Fatal(err)
 		}
 	}
-	p, err := policy.New(home, []policy.Rule{{ID: "fixture", Version: "1", Reason: "synthetic regenerated data", Evidence: "test only, not a shipping rule", Paths: paths, MinAge: time.Hour}}, nil)
+	p, err := policy.New(home, []policy.Rule{{ID: "fixture", Version: "1", Reason: "synthetic regenerated data", Evidence: "test only, not a shipping rule", Paths: paths, MinAge: time.Hour}}, exclusions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,5 +168,80 @@ func TestCancelScanClearsThePreview(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("fixture unavailable") {
 		t.Fatal("scan error hidden")
+	}
+}
+
+func TestExclusionSaveClearsSelectionAndBlocksOnFailure(t *testing.T) {
+	m := &appui.Model{}
+	m.OnScan = m.Begin
+	var saved []string
+	m.OnSaveExclusions = func(paths []string) { saved = paths }
+	m.ExclusionsLoaded([]string{"Documents"}, nil)
+	m.Finish(preview(t), nil)
+	tt := ui.NewTester(m.View, 640, 480)
+	if err := tt.Click("Library/Caches/fixture/large.cache"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("Exclusions"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("Excluded paths"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Command("selectAll")
+	tt.Type("Library/Caches/fixture\nDocuments")
+	if err := tt.Click("Save exclusions"); err != nil {
+		t.Fatal(err)
+	}
+	if len(saved) != 2 || saved[0] != "Library/Caches/fixture" || !m.PreferencesBusy {
+		t.Fatalf("wrong save request: %v", saved)
+	}
+	m.ExclusionsLoaded(nil, errors.New("fixture save denied"))
+	tt.Frame()
+	if !tt.HasText("fixture save denied") {
+		t.Fatal("save failure hidden")
+	}
+	if err := tt.Click("Back to preview"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("Selected files: 0 • Estimated bytes: 0") || tt.HasText("large.cache") {
+		t.Fatal("changed preferences kept stale preview")
+	}
+	if err := tt.Click("Scan Mac"); err != nil {
+		t.Fatal(err)
+	}
+	if m.Scanning {
+		t.Fatal("failed preferences enabled scan")
+	}
+	m.ExclusionsLoaded(saved, nil)
+	tt.Frame()
+	if err := tt.Click("Scan Mac"); err != nil || !m.Scanning {
+		t.Fatalf("successful save did not unblock scan: %v", err)
+	}
+	m.Finish(preview(t, saved...), nil)
+	tt.Frame()
+	if !tt.HasText("Preview: 0 reviewed files; 2 skipped.") || !tt.HasText("excluded by path policy") ||
+		!tt.HasText("Selected files: 0 • Estimated bytes: 0") {
+		t.Fatal("excluded results were selectable or unexplained")
+	}
+}
+
+func TestOffscreenSelectionCanBeCleared(t *testing.T) {
+	m := &appui.Model{}
+	m.Finish(preview(t), nil)
+	tt := ui.NewTester(m.View, 640, 480)
+	if err := tt.Click("Library/Caches/fixture/small.cache"); err != nil {
+		t.Fatal(err)
+	}
+	tt.SetSize(520, 360)
+	tt.Scroll(250, 200, 0, 1000)
+	if !tt.HasText("Selected outside view: 1") || !tt.HasText("Selected files: 1 • Estimated bytes: 3") {
+		t.Fatalf("hidden selection not explained: %v", tt.Texts())
+	}
+	if err := tt.Click("Clear selection"); err != nil {
+		t.Fatal(err)
+	}
+	if !tt.HasText("Selected files: 0 • Estimated bytes: 0") || !tt.HasText("Selected outside view: 0") {
+		t.Fatal("hidden selection not cleared")
 	}
 }

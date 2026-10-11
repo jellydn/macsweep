@@ -6,6 +6,17 @@ override built-in exclusions. Paths are home-relative (for example
 Traversal, globs and paths outside home are rejected. Existing component-aware,
 case-folded and Unicode-normalized policy matching also applies to preferences.
 
+Open **Exclusions**, enter one path per line and choose **Save exclusions**.
+Blank lines are ignored; spaces within paths are preserved. **Back to preview**
+does not apply unsaved edits. Saving clears the entire old preview and selection,
+including offscreen selections, and requires another scan. Editing is disabled
+during a scan. Preference reads/writes run off the UI thread.
+
+The preview shows **Selected outside view** for selected rows outside the current
+list viewport. Scrolling does not deselect them. **Clear selection** clears all
+selected IDs, including offscreen ones. Excluded targets appear as skipped with
+the reason **excluded by path policy**; skipped rows have no selection control.
+
 Settings live in `~/Library/Application Support/MacSweep/preferences.json`, with
 schema version 1. The app directory is private (0700), and the file is private
 (0600). A save validates exclusions before writing a fresh file, syncing it,
