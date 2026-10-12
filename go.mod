@@ -4,7 +4,7 @@ go 1.27.2
 
 require (
 	github.com/egoist/mygo v0.4.2
-	golang.org/x/text v0.42.0
+	golang.org/x/text v0.43.0
 )
 
 require (
