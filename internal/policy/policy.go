@@ -129,7 +129,8 @@ func (p *Policy) Home() string      { return p.home }
 func (p *Policy) Targets() []Target { return slices.Clone(p.targets) }
 
 func validRelative(path string) bool {
-	if !utf8.ValidString(path) || !fs.ValidPath(path) || strings.ContainsAny(path, "\x00\\:*?[]") || path == "." {
+	// Line breaks cannot round-trip through the one-path-per-line editor.
+	if !utf8.ValidString(path) || !fs.ValidPath(path) || strings.ContainsAny(path, "\x00\r\n\\:*?[]") || path == "." {
 		return false
 	}
 	return !filepath.IsAbs(path)

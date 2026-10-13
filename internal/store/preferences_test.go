@@ -19,7 +19,7 @@ func TestExclusionsRoundTripAndInvalidSave(t *testing.T) {
 	if err := store.SaveExclusions(home, want); err != nil {
 		t.Fatal(err)
 	}
-	for _, invalid := range []string{"../outside", home + "/Library/../Documents"} {
+	for _, invalid := range []string{"../outside", home + "/Library/../Documents", "Library/Caches/fixture\nother", "Library/Caches/fixture\r"} {
 		if err := store.SaveExclusions(home, []string{invalid}); err == nil {
 			t.Fatalf("invalid preference accepted: %q", invalid)
 		}
@@ -45,7 +45,7 @@ func TestExclusionsRoundTripAndInvalidSave(t *testing.T) {
 }
 
 func TestUnsafePreferencesBlockLoad(t *testing.T) {
-	for _, state := range []string{"corrupt", "version", "unknown", "traversal", "symlink", "hardlink", "permissions", "directory-link"} {
+	for _, state := range []string{"corrupt", "version", "unknown", "traversal", "newline", "carriage-return", "symlink", "hardlink", "permissions", "directory-link"} {
 		t.Run(state, func(t *testing.T) {
 			home := t.TempDir()
 			if err := store.SaveExclusions(home, []string{"Documents"}); err != nil {
@@ -63,6 +63,10 @@ func TestUnsafePreferencesBlockLoad(t *testing.T) {
 				err = os.WriteFile(path, []byte(`{"version":1,"allow":["Documents"]}`), 0600)
 			case "traversal":
 				err = os.WriteFile(path, []byte(`{"version":1,"exclusions":["../outside"]}`), 0600)
+			case "newline":
+				err = os.WriteFile(path, []byte(`{"version":1,"exclusions":["Library/Caches/fixture\nother"]}`), 0600)
+			case "carriage-return":
+				err = os.WriteFile(path, []byte(`{"version":1,"exclusions":["Library/Caches/fixture\r"]}`), 0600)
 			case "symlink":
 				if err = os.Rename(path, path+".original"); err == nil {
 					err = os.Symlink("preferences.json.original", path)
