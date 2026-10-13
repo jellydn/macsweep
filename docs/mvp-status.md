@@ -42,14 +42,21 @@ handler. No runtime updater, app network client, telemetry or elevation was adde
 5. Record native cancellation/RSS performance, Metal/VoiceOver/keyboard behavior
    and real app socket/offline evidence. Linux/headless tests are not substitutes.
 6. Provision trusted signing/notary access and reviewed release environment only
-   after safety approval. Creating tags, preparing/publishing a release and merging
-   PRs require separate approval; no such actions were performed.
+   after safety approval. Creating tags and preparing/publishing a release
+   require separate approval. Read-only PR merge approval does not enable cleanup
+   or authorize release actions.
 
 User-exclusion preferences and hidden/excluded-selection explanations are
 implemented; see [exclusion behavior and persistence](exclusions.md).
-The [100,000-file fixture and Linux measurements](performance.md) are recorded.
-Native performance gates remain open. Count progress is not a time or completion
-estimate. Batched updates can pause during a slow metadata call.
+The [100,000-file fixture and Linux/Apple Silicon measurements](performance.md)
+are recorded. Actual arm64 tests on an M2 Pro with macOS 27.0.1 passed the
+read-only policy, scan, preference and UI suites. Native dark preview/editor
+renders and an empty-provider scan were observed. A native idle RSS sample was
+about 99.5 MiB; the synthetic retained headless preview was about 255–256 MiB.
+Intel was not executed; the evidence recipe is recorded in the performance doc.
+Native acceptance gates remain open, including minimum macOS, other APFS modes,
+TCC, VoiceOver, real cancel input and staging/Trash/recovery. Count progress is
+not a time or completion estimate. Batched updates can pause in a metadata call.
 
 Follow the umbrella checklists, [safety contract](safety.md),
 [provider approval](provider-rules.md) and [scan contract](scan-preview.md).
