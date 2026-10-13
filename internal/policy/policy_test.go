@@ -1,6 +1,7 @@
 package policy_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,12 +68,15 @@ func TestExactRuleAndExclusions(t *testing.T) {
 		t.Fatal("forged target accepted")
 	}
 	for _, excluded := range []string{"Library/Caches/fixture", "library/caches/FIXTURE", path, "."} {
-		p, err := policy.New(home, []policy.Rule{rule(target.RelativePath)}, []string{excluded})
+		next, err := p.WithExclusions([]string{excluded})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := p.Inspect(target, time.Now()); err == nil {
+		if _, err := next.Inspect(target, time.Now()); !errors.Is(err, policy.ErrExcluded) {
 			t.Fatalf("exclusion %q bypassed", excluded)
+		}
+		if _, err := p.Inspect(target, time.Now()); err != nil {
+			t.Fatalf("new exclusions mutated old policy: %v", err)
 		}
 	}
 	p, err = policy.New(home, []policy.Rule{rule(target.RelativePath)}, []string{"Library/Caches/fixture2"})

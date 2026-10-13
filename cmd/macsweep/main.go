@@ -13,6 +13,7 @@ import (
 	"github.com/jellydn/macsweep/internal/platform"
 	"github.com/jellydn/macsweep/internal/policy"
 	"github.com/jellydn/macsweep/internal/scan"
+	"github.com/jellydn/macsweep/internal/store"
 	appui "github.com/jellydn/macsweep/internal/ui"
 )
 
@@ -57,9 +58,38 @@ func main() {
 		if p == nil {
 			return
 		}
+		basePolicy := p
+		model.PreferencesBusy = true
+		go func() {
+			paths, err := store.LoadExclusions(home)
+			var next *policy.Policy
+			if err == nil {
+				next, err = basePolicy.WithExclusions(paths)
+			}
+			win.Update(func() {
+				if err == nil {
+					p = next
+				}
+				model.ExclusionsLoaded(paths, err)
+			})
+		}()
+		model.OnSaveExclusions = func(paths []string) {
+			go func() {
+				next, err := basePolicy.WithExclusions(paths)
+				if err == nil {
+					err = store.SaveExclusions(home, paths)
+				}
+				win.Update(func() {
+					if err == nil {
+						p = next
+					}
+					model.ExclusionsLoaded(paths, err)
+				})
+			}()
+		}
 		// Capacity and scanning run off the UI thread. No content is read or moved.
 		go func() {
-			capacity, err := platform.Volume(p.Home())
+			capacity, err := platform.Volume(basePolicy.Home())
 			win.Update(func() {
 				model.Capacity = capacity
 				if err != nil {
@@ -72,9 +102,12 @@ func main() {
 			ctx, stop := context.WithCancel(context.Background())
 			cancel = stop
 			model.Begin()
+			scanPolicy := p
 			go func() {
 				defer stop()
-				snapshot, err := scan.Run(ctx, p)
+				snapshot, err := scan.RunWithProgress(ctx, scanPolicy, func(progress scan.Progress) {
+					win.Update(func() { model.Progress(progress) })
+				})
 				win.Update(func() { model.Finish(snapshot, err) })
 			}()
 		}

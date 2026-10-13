@@ -51,9 +51,20 @@ type Policy struct {
 }
 
 var ErrIneligible = errors.New("file is not eligible")
+var ErrExcluded = errors.New("excluded by path policy")
 
 // Default ships no rules until exact provider paths have been approved.
 func Default(home string) (*Policy, error) { return New(home, nil, nil) }
+
+// WithExclusions replaces user exclusions without changing reviewed rules.
+func (p *Policy) WithExclusions(paths []string) (*Policy, error) {
+	next, err := New(p.home, nil, paths)
+	if err != nil {
+		return nil, err
+	}
+	next.targets, next.byID = p.targets, p.byID
+	return next, nil
+}
 
 func New(home string, rules []Rule, exclusions []string) (*Policy, error) {
 	if os.Getuid() == 0 {
@@ -96,6 +107,10 @@ func New(home string, rules []Rule, exclusions []string) (*Policy, error) {
 	}
 	for _, path := range exclusions {
 		if filepath.IsAbs(path) {
+			// Validate before Rel can erase traversal components.
+			if !validRelative(strings.TrimPrefix(filepath.ToSlash(path), "/")) {
+				return nil, fmt.Errorf("invalid exclusion %q", path)
+			}
 			path, err = filepath.Rel(home, path)
 			if err != nil {
 				return nil, err
@@ -114,7 +129,8 @@ func (p *Policy) Home() string      { return p.home }
 func (p *Policy) Targets() []Target { return slices.Clone(p.targets) }
 
 func validRelative(path string) bool {
-	if !utf8.ValidString(path) || !fs.ValidPath(path) || strings.ContainsAny(path, "\x00\\:*?[]") || path == "." {
+	// Line breaks cannot round-trip through the one-path-per-line editor.
+	if !utf8.ValidString(path) || !fs.ValidPath(path) || strings.ContainsAny(path, "\x00\r\n\\:*?[]") || path == "." {
 		return false
 	}
 	return !filepath.IsAbs(path)
@@ -154,8 +170,11 @@ func (p *Policy) excluded(path string) bool {
 // identity changes while descending. No filesystem-mutation API is exposed.
 func (p *Policy) Inspect(target Target, now time.Time) (File, error) {
 	known, ok := p.byID[target.ID]
-	if !ok || known != target || p.excluded(target.RelativePath) {
+	if !ok || known != target {
 		return File{}, ErrIneligible
+	}
+	if p.excluded(target.RelativePath) {
+		return File{}, ErrExcluded
 	}
 	root, err := os.OpenRoot(p.home)
 	if err != nil {
