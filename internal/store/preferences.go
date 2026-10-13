@@ -147,6 +147,19 @@ func preferenceRoot(home string, create bool) (*os.Root, error) {
 			root.Close()
 			return nil, errors.New("unsafe preferences directory; links and shared app state are not supported")
 		}
+		if create {
+			// Persist the child's entry, including on a retry after a failed sync.
+			parent, err := root.Open(".")
+			if err != nil {
+				root.Close()
+				return nil, err
+			}
+			err = errors.Join(parent.Sync(), parent.Close())
+			if err != nil {
+				root.Close()
+				return nil, fmt.Errorf("sync preferences parent: %w", err)
+			}
+		}
 		next, err := root.OpenRoot(component)
 		root.Close()
 		if err != nil {
