@@ -3,7 +3,7 @@ module github.com/jellydn/macsweep
 go 1.27.2
 
 require (
-	github.com/egoist/mygo v0.4.2
+	github.com/egoist/mygo v0.5.5
 	golang.org/x/text v0.43.0
 )
 
